@@ -1,6 +1,6 @@
 --> CHANGE ME
-local notification_library_name = "notifications" -- ../primordial/libraries/(notification name)
-local chat_library_name = "chat" -- ../primordial/libraries/(chat print name)
+local notification_library_name = "notifications" -- ../primordial/include/(notification name)
+local chat_library_name = "chat" -- ../primordial/include/(chat print name)
 
 --> Libraries
 local nstat, notifications = pcall(function () return require(notification_library_name) end)
@@ -15,12 +15,17 @@ local ui = {
     logsEnable = menu.add_checkbox("Global", "Enable", true),
     logsType = menu.add_multi_selection("Global", "Log", {"Hit", "Shot", "spread", "resolver", "prediction error", "ping", "occlusion", "extrapolation"}),
     logsTo = menu.add_multi_selection("Global", "To", {"Event", "Notification", "Chat (local)", "Chat (all)"}),
+    logsNotifyMiss = menu.add_text("Global", "Library ".. notification_library_name .. " is missing."),
+    logsChatMiss = menu.add_text("Global", "Library '" .. chat_library_name .. "' is missing."),
     logsChatAll = menu.add_text("Global", "Chat(all) works only for misses to prevent spam."),
     logsSeparator = menu.add_separator("Global"),
     logsCopy = menu.add_checkbox("Global", "Auto copy miss message"),
     logsNotifySpeed = menu.add_slider("Global", "Notification speed", 0, 10, 1, 0, "s"),
     logsChatColor = menu.add_selection("Global", "Chat color", {"Default", "white", "green", "red", "yellow", "blue", "purple", "lightred", "orange"})
 }
+
+ui.logsNotifyMiss:set_visible(false)
+ui.logsChatMiss:set_visible(false)
 
 --> Variables
 local data = {
@@ -48,14 +53,14 @@ local function on_paint()
 
         if not nstat and string.find(notifications, "module '".. notification_library_name .. "' not found: unknown module, make sure the file is in primordial/scripts/include") then
 
-            ui.logsTo:set_items({ui.logsTo:get_item_name(1), ui.logsTo:get_item_name(2), "Notifications (missing library)", ui.logsTo:get_item_name(4), ui.logsTo:get_item_name(5)})
-            menu.add_text("Global", "Library 'notifications' is missing.")
+            ui.logsTo:set_items({ui.logsTo:get_item_name(1), "Notifications - missing library", ui.logsTo:get_item_name(3), ui.logsTo:get_item_name(4)})
+            ui.logsNotifyMiss:set_visible(true)
         end
         
         if not cstat and string.find(chat, "module '".. chat_library_name .. "' not found: unknown module, make sure the file is in primordial/scripts/include") then
         
-            ui.logsTo:set_items({ui.logsTo:get_item_name(1), ui.logsTo:get_item_name(2), ui.logsTo:get_item_name(3), "Chat (missing library)", ui.logsTo:get_item_name(5)})
-            menu.add_text("Global", "Library 'chat' is missing.")
+            ui.logsTo:set_items({ui.logsTo:get_item_name(1), ui.logsTo:get_item_name(2), "Chat (local) - missing library", ui.logsTo:get_item_name(4)})
+            ui.logsChatMiss:set_visible(true)
         end
 
         data.Loaded = true
@@ -112,7 +117,7 @@ local function on_aimbot_miss(miss)
     if(safechat) then safechat = " [{"..color.."}safe{white}]" safe = " [safe]" else safechat = "" safe = "" end
 
     if(reason == "ping (local death)") then reason = "death" end
-    if(reason == "ping (victim death)") then reason = "victim death" end
+    if(reason == "ping (target death)") then reason = "target death" end
 
     local message = "Aimbot missed " .. miss.player:get_name() .. "'s " .. data.hitgroupName[miss.aim_hitgroup + 1] .. " [hc:".. miss.aim_hitchance .."] [dmg:" .. miss.aim_damage .. "] [bt:" .. miss.backtrack_ticks .. "]".. safe .." due to [".. reason .. "]"
     local chatmsg = "{"..color.."}>> {white} Missed {"..color.."}" .. miss.player:get_name() .. "{white}'s {"..color.."}" .. data.hitgroupName[miss.aim_hitgroup + 1] .. " {white}[hc:{"..color.."}".. miss.aim_hitchance .."{white}] [dmg:{"..color.."}" .. miss.aim_damage .. "{white}] [bt:{"..color.."}" .. miss.backtrack_ticks .. "{white}]".. safechat .." due to [{"..color.."}".. reason .. "{white}]"
@@ -120,7 +125,7 @@ local function on_aimbot_miss(miss)
     if(ui.logsType:get(miss.reason_string) or
         ui.logsType:get("spread") and miss.reason_string == "spread (missed safe)" or
         ui.logsType:get("ping") and miss.reason_string == "ping (local death)" or
-        ui.logsType:get("ping") and miss.reason_string == "ping (victim death)") then 
+        ui.logsType:get("ping") and miss.reason_string == "ping (target death)") then 
 
         if(ui.logsCopy:get()) then 
             local msg = string.gsub(message, "Aimbot m", ">> M")
