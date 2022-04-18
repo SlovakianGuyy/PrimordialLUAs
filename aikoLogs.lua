@@ -1,6 +1,6 @@
 --> CHANGE ME
-local notification_library_name = "notifications" -- ../primordial/include/(notification name)
-local chat_library_name = "chat" -- ../primordial/include/(chat print name)
+local notification_library_name = "notifications" -- ../scripts/include/(notification name)
+local chat_library_name = "chat" -- ../scripts/include/(chat print name)
 
 --> Libraries
 local nstat, notifications = pcall(function () return require(notification_library_name) end)
@@ -13,7 +13,7 @@ local set_clipboard = function (text) ffi.cast("void(__thiscall*)(void*, const c
 local ui = {
 
     logsEnable = menu.add_checkbox("Global", "Enable", true),
-    logsType = menu.add_multi_selection("Global", "Log", {"Hit", "Shot", "spread", "resolver", "prediction error", "ping", "occlusion", "extrapolation"}),
+    logsType = menu.add_multi_selection("Global", "Log", {"hit", "shot", "spread", "resolver", "prediction error", "ping", "occlusion", "extrapolation", "other"}),
     logsTo = menu.add_multi_selection("Global", "To", {"Event", "Notification", "Chat (local)", "Chat (all)"}),
     logsNotifyMiss = menu.add_text("Global", "Library ".. notification_library_name .. " is missing."),
     logsChatMiss = menu.add_text("Global", "Library '" .. chat_library_name .. "' is missing."),
@@ -27,10 +27,18 @@ local ui = {
 ui.logsNotifyMiss:set_visible(false)
 ui.logsChatMiss:set_visible(false)
 
+--> Func. for checking lists
+function Set (list)
+    local set = {}
+    for _, l in ipairs(list) do set[l] = true end
+    return set
+end
+
 --> Variables
 local data = {
 
     hitgroupName = {"Generic", "Head", "Chest", "Stomach", "Left arm", "Right arm", "Left leg", "Right leg", "Neck", "Gear"},
+    missReason = Set {"spread", "spread (missed safe)", "resolver", "prediction error", "ping (local death)", "ping (target death)", "occlusion", "extrapolation"},
     Loaded = false
 }
 
@@ -100,7 +108,7 @@ local function on_aimbot_shoot(shot)
         local chatmsg = "{"..color.."}>> {white} Shot at {"..color.."}" .. shot.player:get_name() .. "{white}'s {"..color.."}" .. data.hitgroupName[shot.hitgroup + 1] .. "{white} [hc:{"..color.."}".. shot.hitchance .."{white}] [dmg:{"..color.."}" .. shot.damage .. "{white}] [bt:{"..color.."}" .. shot.backtrack_ticks .. "{white}]".. safechat
 
         if(ui.logsTo:get("Event")) then client.log_screen(">> " .. message) end
-        if(ui.logsTo:get("Notification")) then notifications:add_notification(">> Shot at " .. hit.player:get_name() .. " in " .. data.hitgroupName[shot.hitgroup + 1], message, ui.logsNotifySpeed:get()) end
+        if(ui.logsTo:get("Notification")) then notifications:add_notification(">> Shot at " .. shoot.player:get_name() .. " in " .. data.hitgroupName[shot.hitgroup + 1], message, ui.logsNotifySpeed:get()) end
         if(ui.logsTo:get("Chat (local)")) then chat.print(chatmsg) end
         if(ui.logsTo:get("Chat (all)")) then engine.execute_cmd("say " .. chatmsg) end
     end
@@ -122,7 +130,7 @@ local function on_aimbot_miss(miss)
     local message = "Aimbot missed " .. miss.player:get_name() .. "'s " .. data.hitgroupName[miss.aim_hitgroup + 1] .. " [hc:".. miss.aim_hitchance .."] [dmg:" .. miss.aim_damage .. "] [bt:" .. miss.backtrack_ticks .. "]".. safe .." due to [".. reason .. "]"
     local chatmsg = "{"..color.."}>> {white} Missed {"..color.."}" .. miss.player:get_name() .. "{white}'s {"..color.."}" .. data.hitgroupName[miss.aim_hitgroup + 1] .. " {white}[hc:{"..color.."}".. miss.aim_hitchance .."{white}] [dmg:{"..color.."}" .. miss.aim_damage .. "{white}] [bt:{"..color.."}" .. miss.backtrack_ticks .. "{white}]".. safechat .." due to [{"..color.."}".. reason .. "{white}]"
     
-    if(ui.logsType:get(miss.reason_string) or
+    if(ui.logsType:get(miss.reason_string) or ui.logsType:get("other") and not data.missReason[miss.reason_string] or
         ui.logsType:get("spread") and miss.reason_string == "spread (missed safe)" or
         ui.logsType:get("ping") and miss.reason_string == "ping (local death)" or
         ui.logsType:get("ping") and miss.reason_string == "ping (target death)") then 
